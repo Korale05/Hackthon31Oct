@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -12,10 +10,224 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model User {
-  id            String  @id @unique @default(cuid())
-  username      String  @unique
-  password      String  
-  refreshToken  String?
+  id           String  @id @unique @default(cuid())
+  username     String  @unique
+  password     String
+  refreshToken String?
+}
+
+model RoadNode {
+  id            String     @id @default(cuid())
+  name          String
+  lat           Float
+  lng           Float
+  outgoingEdges RoadEdge[] @relation("FromNode")
+  incomingEdges RoadEdge[] @relation("ToNode")
+}
+
+model RoadEdge {
+  id            String   @id @default(cuid())
+  fromNodeId    String
+  toNodeId      String
+  distanceKm    Float
+  baseSpeedKmh  Float
+  trafficFactor Float    @default(1.0)
+  isBlocked     Boolean  @default(false)
+
+  fromNode RoadNode @relation("FromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode   RoadNode @relation("ToNode", fields: [toNodeId], references: [id], onDelete: Cascade)
+}
+
+model AmbulanceStation {
+  id         String      @id @default(cuid())
+  name       String
+  lat        Float
+  lng        Float
+  nodeId     String
+  ambulances Ambulance[]
+}
+
+model Ambulance {
+  id            String           @id @default(cuid())
+  code          String           @unique
+  type          String // BASIC | ADVANCED | ICU
+  status        String           @default("AVAILABLE") // AVAILABLE | ASSIGNED | EN_ROUTE_TO_PATIENT | AT_PATIENT | TRANSPORTING | COMPLETED | OFFLINE
+  currentNodeId String
+  lat           Float
+  lng           Float
+  stationId     String
+  station       AmbulanceStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  emergencies   Emergency[]
+}
+
+model Hospital {
+  id            String      @id @default(cuid())
+  name          String
+  lat           Float
+  lng           Float
+  nodeId        String
+  specialties   String[]
+  totalBeds     Int
+  availableBeds Int
+  icuBeds       Int
+  emergencyOpen Boolean     @default(true)
+  traumaLevel   Int
+  emergencies   Emergency[]
+}
+
+model Emergency {
+  id                String         @id @default(cuid())
+  callerName        String
+  phone             String
+  description       String
+  lat               Float
+  lng               Float
+  nearestNodeId     String
+  category          String
+  severity          Int // 1-5
+  requiredSpecialty String
+  aiReasoning       String
+  aiSource          String // LLM | RULES
+  status            String         @default("PENDING") // PENDING | AMBULANCE_ASSIGNED | EN_ROUTE_TO_PATIENT | PICKUP_CONFIRMED | EN_ROUTE_TO_HOSPITAL | COMPLETED | CANCELLED
+  ambulanceId       String?
+  hospitalId        String?
+  ambulance         Ambulance?     @relation(fields: [ambulanceId], references: [id])
+  hospital          Hospital?      @relation(fields: [hospitalId], references: [id])
+  createdAt         DateTime       @default(now())
+  pickupAt          DateTime?
+  completedAt       DateTime?
+  routeLegs         RouteLeg[]
+  journeyEvents     JourneyEvent[]
+}
+
+model RouteLeg {
+  id          String    @id @default(cuid())
+  emergencyId String
+  stage       String // TO_PATIENT | TO_HOSPITAL
+  pathNodeIds Json
+  distanceKm  Float
+  etaMinutes  Float
+  algorithm   String    @default("A_STAR") // A_STAR | DIJKSTRA
+  version     Int       @default(1)
+  isActive    Boolean   @default(true)
+  reason      String?
+  emergency   Emergency @relation(fields: [emergencyId], references: [id], onDelete: Cascade)
+}
+
+model JourneyEvent {
+  id          String    @id @default(cuid())
+  emergencyId String
+  type        String // ASSIGNED | PICKUP | REROUTE | COMPLETED | etc.
+  message     String
+  createdAt   DateTime  @default(now())
+  emergency   Emergency @relation(fields: [emergencyId], references: [id], onDelete: Cascade)
+}
+
+
+model RoadNode {
+  id            String     @id @default(cuid())
+  name          String
+  lat           Float
+  lng           Float
+  outgoingEdges RoadEdge[] @relation("FromNode")
+  incomingEdges RoadEdge[] @relation("ToNode")
+}
+
+model RoadEdge {
+  id            String   @id @default(cuid())
+  fromNodeId    String
+  toNodeId      String
+  distanceKm    Float
+  baseSpeedKmh  Float
+  trafficFactor Float    @default(1.0)
+  isBlocked     Boolean  @default(false)
+
+  fromNode RoadNode @relation("FromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode   RoadNode @relation("ToNode", fields: [toNodeId], references: [id], onDelete: Cascade)
+}
+
+model AmbulanceStation {
+  id         String      @id @default(cuid())
+  name       String
+  lat        Float
+  lng        Float
+  nodeId     String
+  ambulances Ambulance[]
+}
+
+model Ambulance {
+  id            String           @id @default(cuid())
+  code          String           @unique
+  type          String // BASIC | ADVANCED | ICU
+  status        String           @default("AVAILABLE") // AVAILABLE | ASSIGNED | EN_ROUTE_TO_PATIENT | AT_PATIENT | TRANSPORTING | COMPLETED | OFFLINE
+  currentNodeId String
+  lat           Float
+  lng           Float
+  stationId     String
+  station       AmbulanceStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  emergencies   Emergency[]
+}
+
+model Hospital {
+  id            String      @id @default(cuid())
+  name          String
+  lat           Float
+  lng           Float
+  nodeId        String
+  specialties   String[]
+  totalBeds     Int
+  availableBeds Int
+  icuBeds       Int
+  emergencyOpen Boolean     @default(true)
+  traumaLevel   Int
+  emergencies   Emergency[]
+}
+
+model Emergency {
+  id                String         @id @default(cuid())
+  callerName        String
+  phone             String
+  description       String
+  lat               Float
+  lng               Float
+  nearestNodeId     String
+  category          String
+  severity          Int // 1-5
+  requiredSpecialty String
+  aiReasoning       String
+  aiSource          String // LLM | RULES
+  status            String         @default("PENDING") // PENDING | AMBULANCE_ASSIGNED | EN_ROUTE_TO_PATIENT | PICKUP_CONFIRMED | EN_ROUTE_TO_HOSPITAL | COMPLETED | CANCELLED
+  ambulanceId       String?
+  hospitalId        String?
+  ambulance         Ambulance?     @relation(fields: [ambulanceId], references: [id])
+  hospital          Hospital?      @relation(fields: [hospitalId], references: [id])
+  createdAt         DateTime       @default(now())
+  pickupAt          DateTime?
+  completedAt       DateTime?
+  routeLegs         RouteLeg[]
+  journeyEvents     JourneyEvent[]
+}
+
+model RouteLeg {
+  id          String    @id @default(cuid())
+  emergencyId String
+  stage       String // TO_PATIENT | TO_HOSPITAL
+  pathNodeIds Json
+  distanceKm  Float
+  etaMinutes  Float
+  algorithm   String    @default("A_STAR") // A_STAR | DIJKSTRA
+  version     Int       @default(1)
+  isActive    Boolean   @default(true)
+  reason      String?
+  emergency   Emergency @relation(fields: [emergencyId], references: [id], onDelete: Cascade)
+}
+
+model JourneyEvent {
+  id          String    @id @default(cuid())
+  emergencyId String
+  type        String // ASSIGNED | PICKUP | REROUTE | COMPLETED | etc.
+  message     String
+  createdAt   DateTime  @default(now())
+  emergency   Emergency @relation(fields: [emergencyId], references: [id], onDelete: Cascade)
 }
